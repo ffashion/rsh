@@ -13,6 +13,7 @@
 #include <arpa/inet.h>
 #include <sys/stat.h>
 #include "rsh_server.h"
+struct termios original_termios;
 #define BUF_SIZE 1000
 int server_listen(int port){
     struct sockaddr_in server = {0};
@@ -70,15 +71,10 @@ int pty_master_open(char *slave_name){
     //grantpt(mfd);
     unlockpt(mfd);
     char *tmp_name = ptsname(mfd);
-    strncpy(slave_name,tmp_name,strlen(tmp_name));
+    strncpy(slave_name,tmp_name,100);
     return mfd;
 }
 //创建子进程 复制文件描述符等
-
-
-
-
-
 pid_t pty_fork(int *masterfd){
     char slave_name[100];
     int mfd = -1;
@@ -99,13 +95,16 @@ pid_t pty_fork(int *masterfd){
         close(STDIN_FILENO);
         close(STDOUT_FILENO);
         close(STDERR_FILENO);
-        //printf("%s\n",slave_name);
         if((slavefd = open(slave_name, O_RDWR)) == -1){     //开一个控制终端
             return -1;
         }
         dup2(slavefd, STDOUT_FILENO);
         dup2(slavefd, STDERR_FILENO);
-        if(execlp("/usr/bin/bash","/usr/bin/bash","-p",(char *)NULL) == -1){
+        char *shell = getenv("SHELL");
+        if(shell == NULL || *shell == '\0'){
+            shell = "/bin/sh";
+        }
+        if(execlp(shell,shell,(char *)NULL) == -1){
             perror("execve");
             exit(-1);
         }
@@ -152,7 +151,7 @@ int main(int argc,char *argv[]){
     int mfd;
     int stat;
     int daemon_stat;
-    char buf[1000];
+    char buf[BUF_SIZE];
     int tmpfd;
     int logfd;
     int n_read;
@@ -170,7 +169,7 @@ int main(int argc,char *argv[]){
     }else{
         printf("Usage: ./rsh_server [port]\n");
     }
-
+    tcgetattr(STDIN_FILENO,&original_termios);
     daemon_fork(logfile);
     server_fd = server_listen(port);
     while (1){
@@ -208,14 +207,5 @@ int main(int argc,char *argv[]){
 
     }
     
-    
-    
-    
-    
-
-   
-    
-
-   
     return 0;
 }
