@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <termio.h>
+#include <netdb.h>
 #include "rsh_client.h"
 struct termios original_termios;
 int tty_set_raw(int fd, struct termios *prevTermios)
@@ -55,6 +56,14 @@ int connect2server(char *addr,int port){
     }
     return client_fd;
 }
+char *domain2ipaddr(char *domain){
+     struct hostent *_hostent = NULL;
+    _hostent = gethostbyname(domain);
+    char *ipaddr = NULL;
+    ipaddr = inet_ntoa(*((struct in_addr *)_hostent->h_addr_list[0]));
+    return ipaddr;
+
+}
 int main(int argc,char *argv[]){
     int client_fd;
     fd_set in_fds;
@@ -70,10 +79,21 @@ int main(int argc,char *argv[]){
         addr = DEFAULT_ADDR;
         port = DEFAULT_PORT;
     }else if(argc == 2){
-        addr = argv[1];
+        //如果argv[1]是域名的话
+        if(inet_addr(argv[1]) == INADDR_NONE){
+            addr = domain2ipaddr(argv[1]);
+        }else 
+        {
+            addr = argv[1];
+        }
         port = DEFAULT_PORT;
     }else if(argc == 3){
-        addr = argv[1];
+        if(inet_addr(argv[1]) == INADDR_NONE){
+            addr = domain2ipaddr(argv[1]);
+        }else 
+        {
+            addr = argv[1];
+        }
         port = atoi(argv[2]);
         
     }
